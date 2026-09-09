@@ -1,0 +1,7 @@
+﻿services:
+  oskauth:
+    image: oskauth
+    build:
+      context: .
+      dockerfile: oskAuth/Dockerfile
+

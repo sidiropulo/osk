@@ -1,0 +1,6 @@
+@oskAuth_HostAddress = http://localhost:5037
+
+GET {{oskAuth_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
