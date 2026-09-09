@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>oskAuth — проверка авторизации</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+        section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 16px 0; }
+        label { display: block; margin: 10px 0; }
+        input { box-sizing: border-box; width: 100%; padding: 8px; }
+        button { padding: 8px 14px; margin-right: 6px; cursor: pointer; }
+        #status { font-weight: 600; }
+        .error { color: #b42318; white-space: pre-line; }
+    </style>
+</head>
+<body>
+<h1>Проверка авторизации</h1>
+
+<section>
+    <h2>Состояние</h2>
+    <p id="status">Проверка</p>
+    <button type="button" id="check">Проверить сейчас</button>
+    <button type="button" id="logout">Выйти со всех устройств</button>
+</section>
+
+<section>
+    <h2>Регистрация</h2>
+    <form id="register-form">
+        <label>Логин <input name="login" value="osk" required></label>
+        <label>Имя <input name="displayName" value="osk" required></label>
+        <label>Пароль <input name="password" type="password" value="password123" required></label>
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+</section>
+
+<section>
+    <h2>Вход</h2>
+    <form id="login-form">
+        <label>Логин <input name="login" value="osk" required></label>
+        <label>Пароль <input name="password" type="password" value="password123" required></label>
+        <button type="submit">Войти</button>
+    </form>
+</section>
+
+<p id="message" class="error"></p>
+
+<script>
+    const tokenKey = "oskAuthToken";
+    const statusElement = document.querySelector("#status");
+    const messageElement = document.querySelector("#message");
+
+    function token() {
+        return localStorage.getItem(tokenKey);
+    }
+
+    async function api(path, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        if (options.body) headers["Content-Type"] = "application/json";
+        if (token()) headers.Authorization = `Bearer ${token()}`;
+        return fetch(path, { ...options, headers });
+    }
+
+    async function showStatus() {
+        if (!token()) {
+            statusElement.className = "error";
+            statusElement.textContent = "Вы не вошли";
+            return;
+        }
+
+        try {
+            const response = await api("/whoami");
+            if (response.ok) {
+                const user = await response.json();
+                statusElement.className = "";
+                statusElement.textContent = `Вы вошли: ${user.displayName} (${user.login})`;
+                return;
+            }
+
+            statusElement.className = "error";
+            if (response.status === 401) {
+                localStorage.removeItem(tokenKey);
+                statusElement.textContent = "Вы не вошли (401)";
+            } else {
+                statusElement.textContent = `Ошибка сервера (${response.status})`;
+            }
+        } catch {
+            statusElement.className = "error";
+            statusElement.textContent = "Сервер недоступен";
+        }
+    }
+
+    document.querySelector("#register-form").addEventListener("submit", async event => {
+        event.preventDefault();
+        messageElement.textContent = "";
+        const form = new FormData(event.currentTarget);
+        const response = await api("/auth/register", {
+            method: "POST",
+            body: JSON.stringify(Object.fromEntries(form))
+        });
+        messageElement.textContent = response.ok
+            ? "Пользователь создан. Теперь войдите."
+            : (await response.json()).error ?? `Ошибка ${response.status}`;
+    });
+
+    document.querySelector("#login-form").addEventListener("submit", async event => {
+        event.preventDefault();
+        messageElement.textContent = "";
+        const form = new FormData(event.currentTarget);
+        const response = await api("/auth/login", {
+            method: "POST",
+            body: JSON.stringify(Object.fromEntries(form))
+        });
+        if (!response.ok) {
+            messageElement.textContent = `Не удалось войти (${response.status})`;
+            return;
+        }
+        const result = await response.json();
+        localStorage.setItem(tokenKey, result.accessToken);
+        await showStatus();
+    });
+
+    document.querySelector("#logout").addEventListener("click", async () => {
+        if (!token()) return;
+
+        try {
+            const response = await api("/auth/logout", { method: "POST" });
+            if (response.ok || response.status === 401) {
+                localStorage.removeItem(tokenKey);
+                await showStatus();
+            } else {
+                messageElement.textContent = `Не удалось выйти (${response.status})`;
+            }
+        } catch {
+            messageElement.textContent = "Сервер недоступен";
+        }
+    });
+
+    document.querySelector("#check").addEventListener("click", showStatus);
+    showStatus();
+    setInterval(showStatus, 3000);
+</script>
+</body>
+</html>

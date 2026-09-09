@@ -1,6 +1,22 @@
-@oskAuth_HostAddress = http://localhost:5037
+@host = http://localhost:5037
+@token = paste-access-token-here
 
-GET {{oskAuth_HostAddress}}/weatherforecast/
-Accept: application/json
+### Register
+POST {{host}}/auth/register
+Content-Type: application/json
 
-###
+{"login":"osk","password":"password123","displayName":"osk"}
+
+### Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{"login":"osk","password":"password123"}
+
+### Current user
+GET {{host}}/whoami
+Authorization: Bearer {{token}}
+
+### Logout
+POST {{host}}/auth/logout
+Authorization: Bearer {{token}}
