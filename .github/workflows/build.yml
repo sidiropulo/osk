@@ -21,7 +21,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore oskAuth.sln
+        run: dotnet restore oskAuth/oskAuth.sln
 
       - name: Build
-        run: dotnet build oskAuth.sln --configuration Release --no-restore
+        run: dotnet build oskAuth/oskAuth.sln --configuration Release --no-restore
